@@ -3,9 +3,10 @@ from datetime import datetime, timedelta
 import pytest
 from django.urls import reverse
 from django.utils import timezone
+from django.conf import settings
 
 from news.models import Comment, News
-from yanews import settings
+from django.test import Client
 
 
 @pytest.fixture
@@ -14,7 +15,8 @@ def author(django_user_model):
 
 
 @pytest.fixture
-def author_client(author, client):
+def author_client(author):
+    client = Client()
     client.force_login(author)
     return client
 
@@ -38,11 +40,9 @@ def comment(author, news):
     return comment
 
 
-@pytest.fixture
-def form_data():
-    return {
-        'text': 'Новый текст коментария'
-    }
+FORM_DATA = {
+    'text': 'Новый текст комментария'
+}
 
 
 @pytest.fixture
@@ -50,45 +50,38 @@ def pk_for_args(news):
     return news.id,
 
 
-@pytest.fixture
-def news_list():
-    today = datetime.today()
-    news_list = News.objects.bulk_create(
-        News(title=f'Новость {index}',
-             text='Просто текст.',
-             date=today - timedelta(days=index))
-        for index in range(settings.NEWS_COUNT_ON_HOME_PAGE + 1)
-    )
-    return news_list
+NEWS_LIST = [
+    News(title=f'Новость {index}',
+         text='Просто текст.',
+         date=datetime.today() - timedelta(days=index))
+    for index in range(settings.NEWS_COUNT_ON_HOME_PAGE + 1)
+]
 
 
 @pytest.fixture
 def comments_list(news, author):
     now = timezone.now()
-    comments_list = []
     for index in range(2):
         comment = Comment.objects.create(
-            news=news, author=author, text=f'Tекст {index}',
+            news=news, author=author, text=f'Текст {index}',
         )
         comment.created = now + timedelta(days=index)
         comment.save()
-        comments_list.append(comment)
-    return comments_list
 
 
 @pytest.fixture
-def detail_url(pk_for_args):
-    return reverse('news:detail', args=pk_for_args)
+def detail_url(news):
+    return reverse('news:detail', args=(news.id,))
 
 
 @pytest.fixture
-def delete_url(pk_for_args):
-    return reverse('news:delete', args=pk_for_args)
+def delete_url(news):
+    return reverse('news:delete', args=(news.id,))
 
 
 @pytest.fixture
-def edit_url(pk_for_args):
-    return reverse('news:edit', args=pk_for_args)
+def edit_url(news):
+    return reverse('news:edit', args=(news.id,))
 
 
 @pytest.fixture
